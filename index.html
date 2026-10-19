@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse Contact Book - Modern Phonebook App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.15);
+        }
+        .dark .glass-card:hover {
+            box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.7);
+        }
+        /* Dialpad key animation */
+        .dial-key:active {
+            transform: scale(0.92);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300">
+
+    <!-- Background Decorative Gradients -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/20 dark:bg-blue-600/15 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/3 -right-40 w-96 h-96 bg-purple-500/20 dark:bg-purple-600/15 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-500/20 dark:bg-emerald-600/15 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Added relative z-30 so dropdown menu floats above stats section -->
+        <header class="glass rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-sm relative z-30">
+            <div class="flex items-center space-x-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-address-book"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">
+                        CCTNS Contacts
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Smart, stylish & synchronized address book</p>
+                </div>
+            </div>
+
+            <!-- Top Actions: Dialpad, Import/Export, Theme Toggle, Add Contact -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="toggleDialpad()" class="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all text-sm flex items-center gap-2" title="Interactive Dialpad">
+                    <i class="fa-solid fa-phone-flip text-emerald-500"></i>
+                    <span class="hidden md:inline font-medium">Dialer</span>
+                </button>
+
+                <div class="relative group">
+                    <button class="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-arrow-up text-indigo-500"></i>
+                        <span class="hidden md:inline font-medium">Data</span>
+                        <i class="fa-solid fa-chevron-down text-xs opacity-60"></i>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 glass rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2 space-y-1">
+                        <button onclick="exportData('json')" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-code text-blue-500"></i> Export JSON
+                        </button>
+                        <button onclick="exportData('csv')" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-file-csv text-emerald-500"></i> Export CSV
+                        </button>
+                        <hr class="border-slate-200 dark:border-slate-800">
+                        <label class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-file-excel text-emerald-600"></i> Import (.xls, .xlsx, .json)
+                            <input type="file" id="importInput" accept=".json,.csv,.xls,.xlsx" class="hidden" onchange="importData(event)">
+                        </label>
+                        <button onclick="loadDemoData()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-rotate text-amber-500"></i> Reset Demo Data
+                        </button>
+                    </div>
+                </div>
+
+                <button id="themeToggle" onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all text-sm">
+                    <i class="fa-solid fa-moon dark:hidden text-indigo-600"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+                </button>
+
+                <button onclick="openAddModal()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm shadow-md shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">Add Contact</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Contacts</p>
+                    <h3 id="statTotal" class="text-2xl font-bold mt-1">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Favorites</p>
+                    <h3 id="statFavorites" class="text-2xl font-bold mt-1">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-star"></i>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Work Contacts</p>
+                    <h3 id="statWork" class="text-2xl font-bold mt-1">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-briefcase"></i>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Emergency</p>
+                    <h3 id="statEmergency" class="text-2xl font-bold mt-1">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass p-4 rounded-2xl flex flex-col md:flex-row gap-4 justify-between items-center">
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Search by name, phone, email, tag..."
+                    class="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-200/50 dark:bg-slate-900/50 border border-slate-300/50 dark:border-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all">
+                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-circle-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Filter Badges & View Switcher -->
+            <div class="flex items-center justify-between w-full md:w-auto gap-3 overflow-x-auto pb-1 md:pb-0">
+                <!-- Tag Filters -->
+                <div class="flex items-center gap-1.5" id="tagFilters">
+                    <button onclick="setTagFilter('All')" class="tag-btn active px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all whitespace-nowrap">All</button>
+                    <button onclick="setTagFilter('Favorites')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">★ Favorites</button>
+                    <button onclick="setTagFilter('Personal')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">Personal</button>
+                    <button onclick="setTagFilter('Work')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">Work</button>
+                    <button onclick="setTagFilter('Family')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">Family</button>
+                    <button onclick="setTagFilter('VIP')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">VIP</button>
+                    <button onclick="setTagFilter('Emergency')" class="tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap">Emergency</button>
+                </div>
+
+                <!-- View Layout Switcher -->
+                <div class="flex items-center bg-slate-200/80 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-300/40 dark:border-slate-800 shrink-0">
+                    <button id="viewGridBtn" onclick="setViewMode('grid')" class="p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm text-blue-600 dark:text-blue-400 transition-all" title="Grid View">
+                        <i class="fa-solid fa-border-all text-xs"></i>
+                    </button>
+                    <button id="viewListBtn" onclick="setViewMode('list')" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all" title="List View">
+                        <i class="fa-solid fa-list text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <main id="contactsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Dynamic contacts will be injected here via JavaScript -->
+        </main>
+
+        <!-- Empty State UI -->
+        <div id="emptyState" class="hidden glass rounded-3xl p-12 text-center max-w-md mx-auto my-12">
+            <div class="w-20 h-20 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-regular fa-address-book"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-1">No contacts found</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Try adjusting your search criteria or add a new contact to get started.</p>
+            <button onclick="openAddModal()" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm transition-all shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-plus mr-1.5"></i> Add New Contact
+            </button>
+        </div>
+
+    </div>
+
+    <div id="contactModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-800 overflow-hidden transform scale-95 transition-all duration-300" id="modalCard">
+            <!-- Modal Header -->
+            <div class="px-6 py-5 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-blue-500"></i> Add New Contact
+                </h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="contactForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="contactId">
+
+                <!-- Avatar/Emoji Selection Header -->
+                <div class="flex items-center space-x-4 mb-2">
+                    <div id="avatarPreview" class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white text-2xl font-bold flex items-center justify-center shadow-lg shrink-0">
+                        ?
+                    </div>
+                    <div class="flex-1 space-y-1">
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Avatar Icon / Emoji</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="avatarEmoji" maxlength="2" placeholder="Emoji (e.g. 🚀, 👨‍💻)" oninput="updateAvatarPreview()"
+                                class="w-24 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select id="avatarBg" onchange="updateAvatarPreview()" class="flex-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="from-blue-500 to-indigo-600">Blue Gradient</option>
+                                <option value="from-emerald-500 to-teal-600">Green Gradient</option>
+                                <option value="from-purple-500 to-pink-600">Purple Gradient</option>
+                                <option value="from-amber-500 to-orange-600">Orange Gradient</option>
+                                <option value="from-rose-500 to-red-600">Red Gradient</option>
+                                <option value="from-slate-600 to-slate-800">Slate Gradient</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- First & Last Name -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">First Name *</label>
+                        <input type="text" id="firstName" required oninput="updateAvatarPreview()" placeholder="Jane"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Last Name *</label>
+                        <input type="text" id="lastName" required oninput="updateAvatarPreview()" placeholder="Doe"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Phone & Email -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Phone Number *</label>
+                        <input type="tel" id="phone" required placeholder="+1 (555) 000-0000"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Email Address</label>
+                        <input type="email" id="email" placeholder="jane.doe@example.com"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Category Tag & Company -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Category Tag</label>
+                        <select id="category" class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Personal">Personal</option>
+                            <option value="Work">Work</option>
+                            <option value="Family">Family</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Company / Title</label>
+                        <input type="text" id="company" placeholder="Acme Inc. / Designer"
+                            class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Notes & Favorite Toggle -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Notes</label>
+                    <textarea id="notes" rows="2" placeholder="Add custom notes, birthdays, addresses..."
+                        class="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="isFavorite" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
+                        <span class="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                            <i class="fa-solid fa-star text-amber-500"></i> Mark as Favorite
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200/60 dark:border-slate-800">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> Save Contact
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="detailModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-800 overflow-hidden transform scale-95 transition-all duration-300" id="detailCard">
+            <div id="detailContent">
+                <!-- Content injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <div id="dialpadModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass bg-white dark:bg-slate-900 w-full max-w-xs rounded-3xl shadow-2xl border border-slate-200/50 dark:border-slate-800 p-6 flex flex-col items-center">
+            <div class="w-full flex justify-between items-center mb-4">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Interactive Dialer</span>
+                <button onclick="toggleDialpad()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <input type="text" id="dialpadDisplay" readonly class="w-full bg-slate-100 dark:bg-slate-800 text-center text-2xl font-bold py-3 px-2 rounded-2xl mb-4 tracking-wider text-slate-800 dark:text-slate-100 outline-none">
+
+            <!-- Dialpad Keypad Grid -->
+            <div class="grid grid-cols-3 gap-3 w-full mb-5">
+                <button onclick="pressDial('1')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">1</button>
+                <button onclick="pressDial('2')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">2</button>
+                <button onclick="pressDial('3')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">3</button>
+                <button onclick="pressDial('4')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">4</button>
+                <button onclick="pressDial('5')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">5</button>
+                <button onclick="pressDial('6')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">6</button>
+                <button onclick="pressDial('7')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">7</button>
+                <button onclick="pressDial('8')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">8</button>
+                <button onclick="pressDial('9')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">9</button>
+                <button onclick="pressDial('*')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">*</button>
+                <button onclick="pressDial('0')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">0</button>
+                <button onclick="pressDial('#')" class="dial-key py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-lg font-bold">#</button>
+            </div>
+
+            <!-- Call & Clear Controls -->
+            <div class="flex items-center justify-between w-full px-2">
+                <button onclick="backspaceDial()" class="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-delete-left"></i>
+                </button>
+                <button onclick="executeCall()" class="w-14 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center text-xl shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
+                    <i class="fa-solid fa-phone"></i>
+                </button>
+                <button onclick="clearDial()" class="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
+                    CLR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // Default Demo Data
+        const defaultContacts = [
+            {
+                id: '1',
+                firstName: 'Sarah',
+                lastName: 'Jenkins',
+                phone: '+1 (555) 234-5678',
+                email: 'sarah.j@designco.io',
+                category: 'Work',
+                company: 'DesignCo / Lead UX',
+                avatarEmoji: '🎨',
+                avatarBg: 'from-purple-500 to-pink-600',
+                notes: 'Loves minimalist design systems and coffee chats.',
+                isFavorite: true,
+                createdAt: Date.now() - 10000000
+            },
+            {
+                id: '2',
+                firstName: 'Alex',
+                lastName: 'Rivera',
+                phone: '+1 (555) 876-5432',
+                email: 'alex.rivera@techcorp.com',
+                category: 'VIP',
+                company: 'TechCorp / CTO',
+                avatarEmoji: '👨‍💻',
+                avatarBg: 'from-blue-500 to-indigo-600',
+                notes: 'Key contact for upcoming Q4 enterprise integration.',
+                isFavorite: true,
+                createdAt: Date.now() - 8000000
+            },
+            {
+                id: '3',
+                firstName: 'Dr. Michael',
+                lastName: 'Chen',
+                phone: '+1 (555) 911-0421',
+                email: 'mchen@healthcenter.org',
+                category: 'Emergency',
+                company: 'City Hospital / Physician',
+                avatarEmoji: '🏥',
+                avatarBg: 'from-rose-500 to-red-600',
+                notes: 'Family doctor - clinic open Mon-Fri 9am-5pm.',
+                isFavorite: true,
+                createdAt: Date.now() - 6000000
+            },
+            {
+                id: '4',
+                firstName: 'Emma',
+                lastName: 'Watson',
+                phone: '+1 (555) 345-6789',
+                email: 'emma.w@familynet.me',
+                category: 'Family',
+                company: 'Sister',
+                avatarEmoji: '🌺',
+                avatarBg: 'from-emerald-500 to-teal-600',
+                notes: 'Birthday on June 15th.',
+                isFavorite: false,
+                createdAt: Date.now() - 4000000
+            },
+            {
+                id: '5',
+                firstName: 'David',
+                lastName: 'Miller',
+                phone: '+1 (555) 654-3210',
+                email: 'dave@freelance.org',
+                category: 'Personal',
+                company: 'Photography',
+                avatarEmoji: '📷',
+                avatarBg: 'from-amber-500 to-orange-600',
+                notes: 'College roommate & weekend hiking buddy.',
+                isFavorite: false,
+                createdAt: Date.now() - 2000000
+            }
+        ];
+
+        // App State
+        let contacts = [];
+        let currentTagFilter = 'All';
+        let searchQuery = '';
+        let viewMode = 'grid'; // 'grid' or 'list'
+        let lastDeletedContact = null;
+
+        window.onload = function () {
+            // Load theme
+            if (localStorage.getItem('theme') === 'light') {
+                document.documentElement.classList.remove('dark');
+            }
+
+            // Load Contacts from LocalStorage or initialize with defaults
+            const savedContacts = localStorage.getItem('pulse_contacts');
+            if (savedContacts) {
+                try {
+                    contacts = JSON.parse(savedContacts);
+                } catch(e) {
+                    contacts = defaultContacts;
+                }
+            } else {
+                contacts = [...defaultContacts];
+                saveContactsToStorage();
+            }
+
+            renderContacts();
+            updateStats();
+        };
+
+        // Theme Toggle Function
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled', 'info');
+        }
+
+        // Save State
+        function saveContactsToStorage() {
+            localStorage.setItem('pulse_contacts', JSON.stringify(contacts));
+            updateStats();
+        }
+
+        // Load Demo Data Option
+        function loadDemoData() {
+            contacts = [...defaultContacts];
+            saveContactsToStorage();
+            renderContacts();
+            showToast('Demo contacts restored!', 'success');
+        }
+
+        function handleSearch() {
+            const input = document.getElementById('searchInput');
+            searchQuery = input.value.trim().toLowerCase();
+            document.getElementById('clearSearchBtn').classList.toggle('hidden', searchQuery === '');
+            renderContacts();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchQuery = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderContacts();
+        }
+
+        function setTagFilter(tag) {
+            currentTagFilter = tag;
+            document.querySelectorAll('#tagFilters button').forEach(btn => {
+                if (btn.innerText.includes(tag)) {
+                    btn.className = 'tag-btn active px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all whitespace-nowrap';
+                } else {
+                    btn.className = 'tag-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all whitespace-nowrap';
+                }
+            });
+            renderContacts();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            const container = document.getElementById('contactsContainer');
+            const gridBtn = document.getElementById('viewGridBtn');
+            const listBtn = document.getElementById('viewListBtn');
+
+            if (mode === 'grid') {
+                container.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5';
+                gridBtn.className = 'p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm text-blue-600 dark:text-blue-400 transition-all';
+                listBtn.className = 'p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all';
+            } else {
+                container.className = 'flex flex-col gap-3';
+                listBtn.className = 'p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm text-blue-600 dark:text-blue-400 transition-all';
+                gridBtn.className = 'p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-all';
+            }
+            renderContacts();
+        }
+
+        function renderContacts() {
+            const container = document.getElementById('contactsContainer');
+            const emptyState = document.getElementById('emptyState');
+
+            const filtered = contacts.filter(contact => {
+                const matchesSearch = 
+                    `${contact.firstName} ${contact.lastName}`.toLowerCase().includes(searchQuery) ||
+                    contact.phone.toLowerCase().includes(searchQuery) ||
+                    contact.email.toLowerCase().includes(searchQuery) ||
+                    contact.category.toLowerCase().includes(searchQuery) ||
+                    (contact.company && contact.company.toLowerCase().includes(searchQuery));
+
+                if (currentTagFilter === 'All') return matchesSearch;
+                if (currentTagFilter === 'Favorites') return matchesSearch && contact.isFavorite;
+                return matchesSearch && contact.category === currentTagFilter;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // Sort: Favorites first, then alphabetical
+            filtered.sort((a, b) => {
+                if (a.isFavorite !== b.isFavorite) return b.isFavorite ? 1 : -1;
+                return a.firstName.localeCompare(b.firstName);
+            });
+
+            container.innerHTML = filtered.map(c => viewMode === 'grid' ? renderGridCard(c) : renderListItem(c)).join('');
+        }
+
+        // Tag Color Helper
+        function getTagBadgeClass(category) {
+            switch(category) {
+                case 'Work': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+                case 'Family': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+                case 'VIP': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+                case 'Emergency': return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+                default: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+            }
+        }
+
+        // Render Grid Card Template
+        function renderGridCard(contact) {
+            const initials = (contact.firstName[0] || '') + (contact.lastName[0] || '');
+            const avatarDisplay = contact.avatarEmoji ? contact.avatarEmoji : initials.toUpperCase();
+            const badgeClass = getTagBadgeClass(contact.category);
+
+            return `
+                <div class="glass glass-card rounded-2xl p-5 flex flex-col justify-between relative group border border-slate-200/60 dark:border-slate-800">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3.5">
+                            <div class="w-13 h-13 rounded-2xl bg-gradient-to-tr ${contact.avatarBg || 'from-blue-500 to-indigo-600'} text-white text-xl font-bold flex items-center justify-center shadow-md shrink-0">
+                                ${avatarDisplay}
+                            </div>
+                            <div class="overflow-hidden">
+                                <h4 class="font-bold text-base truncate text-slate-900 dark:text-slate-100">${contact.firstName} ${contact.lastName}</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${contact.company || 'No Organization'}</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleFavorite('${contact.id}', event)" class="text-lg transition-transform hover:scale-125 p-1">
+                            <i class="${contact.isFavorite ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star text-slate-400 dark:text-slate-600'}"></i>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 mb-4 text-xs">
+                        <div class="flex items-center text-slate-600 dark:text-slate-300 gap-2">
+                            <i class="fa-solid fa-phone text-slate-400 w-4"></i>
+                            <span class="font-medium truncate">${contact.phone}</span>
+                        </div>
+                        ${contact.email ? `
+                            <div class="flex items-center text-slate-600 dark:text-slate-300 gap-2">
+                                <i class="fa-solid fa-envelope text-slate-400 w-4"></i>
+                                <span class="truncate">${contact.email}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-200/50 dark:border-slate-800/80">
+                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-wider ${badgeClass}">
+                            ${contact.category}
+                        </span>
+
+                        <div class="flex items-center space-x-1">
+                            <button onclick="copyToClipboard('${contact.phone}', 'Phone number copied!')" class="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all" title="Copy Number">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                            <button onclick="openDetailModal('${contact.id}')" class="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all" title="View Details">
+                                <i class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                            <button onclick="openEditModal('${contact.id}')" class="p-2 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all" title="Edit Contact">
+                                <i class="fa-regular fa-pen-to-square text-xs"></i>
+                            </button>
+                            <button onclick="deleteContact('${contact.id}')" class="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all" title="Delete">
+                                <i class="fa-regular fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render List Item Template
+        function renderListItem(contact) {
+            const initials = (contact.firstName[0] || '') + (contact.lastName[0] || '');
+            const avatarDisplay = contact.avatarEmoji ? contact.avatarEmoji : initials.toUpperCase();
+            const badgeClass = getTagBadgeClass(contact.category);
+
+            return `
+                <div class="glass glass-card rounded-2xl p-3.5 flex items-center justify-between gap-4 border border-slate-200/60 dark:border-slate-800">
+                    <div class="flex items-center space-x-3.5 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr ${contact.avatarBg || 'from-blue-500 to-indigo-600'} text-white text-base font-bold flex items-center justify-center shadow-md shrink-0">
+                            ${avatarDisplay}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-sm truncate text-slate-900 dark:text-slate-100">${contact.firstName} ${contact.lastName}</h4>
+                                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold border uppercase tracking-wider ${badgeClass} hidden sm:inline-block">
+                                    ${contact.category}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${contact.phone} ${contact.company ? '• ' + contact.company : ''}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="toggleFavorite('${contact.id}', event)" class="p-2 text-sm transition-transform hover:scale-125">
+                            <i class="${contact.isFavorite ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star text-slate-400'}"></i>
+                        </button>
+                        <button onclick="openDetailModal('${contact.id}')" class="p-2 text-slate-500 hover:text-indigo-600 transition-all">
+                            <i class="fa-regular fa-eye text-sm"></i>
+                        </button>
+                        <button onclick="openEditModal('${contact.id}')" class="p-2 text-slate-500 hover:text-amber-600 transition-all">
+                            <i class="fa-regular fa-pen-to-square text-sm"></i>
+                        </button>
+                        <button onclick="deleteContact('${contact.id}')" class="p-2 text-slate-500 hover:text-rose-600 transition-all">
+                            <i class="fa-regular fa-trash-can text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-blue-500"></i> Add New Contact';
+            document.getElementById('contactForm').reset();
+            document.getElementById('contactId').value = '';
+            document.getElementById('avatarBg').value = 'from-blue-500 to-indigo-600';
+            updateAvatarPreview();
+
+            const modal = document.getElementById('contactModal');
+            const card = document.getElementById('modalCard');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+        }
+
+        function openEditModal(id) {
+            const contact = contacts.find(c => c.id === id);
+            if (!contact) return;
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-500"></i> Edit Contact';
+            document.getElementById('contactId').value = contact.id;
+            document.getElementById('firstName').value = contact.firstName;
+            document.getElementById('lastName').value = contact.lastName;
+            document.getElementById('phone').value = contact.phone;
+            document.getElementById('email').value = contact.email || '';
+            document.getElementById('category').value = contact.category;
+            document.getElementById('company').value = contact.company || '';
+            document.getElementById('notes').value = contact.notes || '';
+            document.getElementById('isFavorite').checked = contact.isFavorite;
+            document.getElementById('avatarEmoji').value = contact.avatarEmoji || '';
+            document.getElementById('avatarBg').value = contact.avatarBg || 'from-blue-500 to-indigo-600';
+
+            updateAvatarPreview();
+
+            const modal = document.getElementById('contactModal');
+            const card = document.getElementById('modalCard');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('contactModal');
+            const card = document.getElementById('modalCard');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            card.classList.add('scale-95');
+        }
+
+        function updateAvatarPreview() {
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const emoji = document.getElementById('avatarEmoji').value;
+            const bg = document.getElementById('avatarBg').value;
+            const preview = document.getElementById('avatarPreview');
+
+            const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || '?';
+            preview.innerText = emoji ? emoji : initials;
+            preview.className = `w-16 h-16 rounded-2xl bg-gradient-to-tr ${bg} text-white text-2xl font-bold flex items-center justify-center shadow-lg shrink-0`;
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('contactId').value;
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const category = document.getElementById('category').value;
+            const company = document.getElementById('company').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+            const isFavorite = document.getElementById('isFavorite').checked;
+            const avatarEmoji = document.getElementById('avatarEmoji').value.trim();
+            const avatarBg = document.getElementById('avatarBg').value;
+
+            if (id) {
+                // UPDATE
+                const index = contacts.findIndex(c => c.id === id);
+                if (index !== -1) {
+                    contacts[index] = {
+                        ...contacts[index],
+                        firstName, lastName, phone, email, category, company, notes, isFavorite, avatarEmoji, avatarBg
+                    };
+                    showToast('Contact updated successfully!', 'success');
+                }
+            } else {
+                // CREATE
+                const newContact = {
+                    id: Date.now().toString(),
+                    firstName, lastName, phone, email, category, company, notes, isFavorite, avatarEmoji, avatarBg,
+                    createdAt: Date.now()
+                };
+                contacts.unshift(newContact);
+                showToast('New contact added!', 'success');
+            }
+
+            saveContactsToStorage();
+            renderContacts();
+            closeModal();
+        }
+
+        function toggleFavorite(id, event) {
+            if (event) event.stopPropagation();
+            const contact = contacts.find(c => c.id === id);
+            if (contact) {
+                contact.isFavorite = !contact.isFavorite;
+                saveContactsToStorage();
+                renderContacts();
+                showToast(contact.isFavorite ? 'Added to Favorites' : 'Removed from Favorites', 'info');
+            }
+        }
+
+        function deleteContact(id) {
+            const index = contacts.findIndex(c => c.id === id);
+            if (index !== -1) {
+                lastDeletedContact = { ...contacts[index], originalIndex: index };
+                contacts.splice(index, 1);
+                saveContactsToStorage();
+                renderContacts();
+
+                showToastWithUndo('Contact deleted', () => {
+                    if (lastDeletedContact) {
+                        contacts.splice(lastDeletedContact.originalIndex, 0, lastDeletedContact);
+                        saveContactsToStorage();
+                        renderContacts();
+                        showToast('Contact restored!', 'success');
+                        lastDeletedContact = null;
+                    }
+                });
+            }
+        }
+
+        function openDetailModal(id) {
+            const contact = contacts.find(c => c.id === id);
+            if (!contact) return;
+
+            const initials = (contact.firstName[0] || '') + (contact.lastName[0] || '');
+            const avatarDisplay = contact.avatarEmoji ? contact.avatarEmoji : initials.toUpperCase();
+            const badgeClass = getTagBadgeClass(contact.category);
+
+            const detailContent = document.getElementById('detailContent');
+            detailContent.innerHTML = `
+                <div class="relative bg-gradient-to-tr ${contact.avatarBg || 'from-blue-500 to-indigo-600'} p-6 text-white text-center">
+                    <button onclick="closeDetailModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white transition-all">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                    <div class="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-md text-white text-3xl font-bold flex items-center justify-center shadow-xl mx-auto mb-3">
+                        ${avatarDisplay}
+                    </div>
+                    <h3 class="text-xl font-bold">${contact.firstName} ${contact.lastName}</h3>
+                    <p class="text-xs text-white/80 mt-0.5">${contact.company || 'No Company'}</p>
+                    <span class="inline-block mt-3 px-3 py-1 rounded-full text-[10px] font-bold bg-white/20 backdrop-blur-md uppercase tracking-wider">
+                        ${contact.category}
+                    </span>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                                <i class="fa-solid fa-phone"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">Phone</p>
+                                <p class="text-sm font-semibold">${contact.phone}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="copyToClipboard('${contact.phone}', 'Copied phone!')" class="p-2 rounded-xl text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <i class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                            <a href="tel:${contact.phone}" class="p-2 rounded-xl text-emerald-500 hover:bg-emerald-500/10">
+                                <i class="fa-solid fa-phone-flip text-xs"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    ${contact.email ? `
+                    <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">Email</p>
+                                <p class="text-sm font-semibold truncate max-w-[180px]">${contact.email}</p>
+                            </div>
+                        </div>
+                        <a href="mailto:${contact.email}" class="p-2 rounded-xl text-purple-500 hover:bg-purple-500/10">
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </a>
+                    </div>
+                    ` : ''}
+
+                    ${contact.notes ? `
+                    <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Notes</p>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${contact.notes}</p>
+                    </div>
+                    ` : ''}
+
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="closeDetailModal(); openEditModal('${contact.id}')" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-md shadow-blue-500/20">
+                            <i class="fa-solid fa-pen mr-1"></i> Edit Contact
+                        </button>
+                        <button onclick="exportVCard('${contact.id}')" class="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-semibold transition-all">
+                            <i class="fa-solid fa-address-card mr-1"></i> vCard
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const modal = document.getElementById('detailModal');
+            const card = document.getElementById('detailCard');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            const card = document.getElementById('detailCard');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            card.classList.add('scale-95');
+        }
+
+        let dialNumber = '';
+        function toggleDialpad() {
+            const modal = document.getElementById('dialpadModal');
+            const isHidden = modal.classList.contains('opacity-0');
+            if (isHidden) {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function pressDial(num) {
+            dialNumber += num;
+            document.getElementById('dialpadDisplay').value = dialNumber;
+        }
+
+        function backspaceDial() {
+            dialNumber = dialNumber.slice(0, -1);
+            document.getElementById('dialpadDisplay').value = dialNumber;
+        }
+
+        function clearDial() {
+            dialNumber = '';
+            document.getElementById('dialpadDisplay').value = '';
+        }
+
+        function executeCall() {
+            if (!dialNumber) {
+                showToast('Please enter a phone number', 'info');
+                return;
+            }
+            showToast(`Simulating call to ${dialNumber}...`, 'success');
+            window.location.href = `tel:${dialNumber}`;
+        }
+
+        function exportData(type) {
+            let dataStr = "";
+            let fileName = `contacts_${new Date().toISOString().slice(0,10)}`;
+
+            if (type === 'json') {
+                dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contacts, null, 2));
+                fileName += ".json";
+            } else if (type === 'csv') {
+                const headers = ["First Name", "Last Name", "Phone", "Email", "Category", "Company", "Notes"];
+                const rows = contacts.map(c => [
+                    `"${c.firstName}"`, `"${c.lastName}"`, `"${c.phone}"`, `"${c.email || ''}"`, `"${c.category}"`, `"${c.company || ''}"`, `"${(c.notes || '').replace(/"/g, '""')}"`
+                ]);
+                const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+                fileName += ".csv";
+            }
+
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", fileName);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast(`Exported as ${type.toUpperCase()}!`, 'success');
+        }
+
+        function exportVCard(id) {
+            const c = contacts.find(item => item.id === id);
+            if (!c) return;
+
+            const vcard = `BEGIN:VCARD
+VERSION:3.0
+N:${c.lastName};${c.firstName};;;
+FN:${c.firstName} ${c.lastName}
+ORG:${c.company || ''}
+TEL;TYPE=CELL:${c.phone}
+EMAIL:${c.email || ''}
+NOTE:${c.notes || ''}
+END:VCARD`;
+
+            const blob = new Blob([vcard], { type: 'text/vcard' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${c.firstName}_${c.lastName}.vcf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('vCard generated!', 'success');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileName = file.name.toLowerCase();
+            const reader = new FileReader();
+
+            if (fileName.endsWith('.json')) {
+                reader.onload = function(e) {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            contacts = imported;
+                            saveContactsToStorage();
+                            renderContacts();
+                            showToast('Contacts imported successfully from JSON!', 'success');
+                        } else {
+                            showToast('Invalid JSON format', 'error');
+                        }
+                    } catch(err) {
+                        showToast('Error parsing JSON file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            } else if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx') || fileName.endsWith('.csv')) {
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                        if (Array.isArray(jsonData) && jsonData.length > 0) {
+                            const importedContacts = jsonData.map((row, idx) => {
+                                const firstName = row['First Name'] || row['FirstName'] || row['First_Name'] || row['Name'] || row['name'] || `Contact ${idx + 1}`;
+                                const lastName = row['Last Name'] || row['LastName'] || row['Last_Name'] || '';
+                                const phone = row['Phone'] || row['Phone Number'] || row['Mobile'] || row['Contact'] || row['phone'] || '';
+                                const email = row['Email'] || row['Email Address'] || row['email'] || '';
+                                const category = row['Category'] || row['Tag'] || 'Personal';
+                                const company = row['Company'] || row['Organization'] || row['Title'] || '';
+                                const notes = row['Notes'] || row['Note'] || '';
+
+                                return {
+                                    id: (Date.now() + idx).toString(),
+                                    firstName: String(firstName),
+                                    lastName: String(lastName),
+                                    phone: String(phone),
+                                    email: String(email),
+                                    category: category,
+                                    company: String(company),
+                                    notes: String(notes),
+                                    isFavorite: false,
+                                    avatarEmoji: '',
+                                    avatarBg: 'from-blue-500 to-indigo-600',
+                                    createdAt: Date.now()
+                                };
+                            });
+
+                            contacts = [...importedContacts, ...contacts];
+                            saveContactsToStorage();
+                            renderContacts();
+                            showToast(`Imported ${importedContacts.length} contacts from Excel!`, 'success');
+                        } else {
+                            showToast('No rows found in Excel sheet', 'error');
+                        }
+                    } catch(err) {
+                        showToast('Error reading Excel/CSV file', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            event.target.value = '';
+        }
+
+        function copyToClipboard(text, message) {
+            const tempInput = document.createElement('input');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast(message || 'Copied to clipboard!', 'success');
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').innerText = contacts.length;
+            document.getElementById('statFavorites').innerText = contacts.filter(c => c.isFavorite).length;
+            document.getElementById('statWork').innerText = contacts.filter(c => c.category === 'Work').length;
+            document.getElementById('statEmergency').innerText = contacts.filter(c => c.category === 'Emergency').length;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let icon = 'fa-circle-info text-blue-400';
+            if (type === 'success') icon = 'fa-circle-check text-emerald-400';
+            if (type === 'error') icon = 'fa-circle-exclamation text-rose-400';
+
+            toast.className = 'glass px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-semibold border border-slate-200/50 dark:border-slate-800 transform translate-y-4 opacity-0 transition-all duration-300 pointer-events-auto';
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showToastWithUndo(message, onUndo) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            toast.className = 'glass px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between gap-4 text-xs font-semibold border border-slate-200/50 dark:border-slate-800 transform translate-y-4 opacity-0 transition-all duration-300 pointer-events-auto min-w-[240px]';
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can text-rose-400 text-sm"></i>
+                    <span>${message}</span>
+                </div>
+                <button id="undoBtn" class="text-blue-500 hover:underline font-bold text-xs uppercase tracking-wider">Undo</button>
+            `;
+
+            container.appendChild(toast);
+
+            document.getElementById('undoBtn').onclick = () => {
+                onUndo();
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            };
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.classList.add('translate-y-4', 'opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4500);
+        }
+    </script>
+</body>
+</html>
